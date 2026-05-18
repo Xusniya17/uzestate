@@ -9,8 +9,8 @@ import Link from "next/link";
 import { toast } from "react-toastify";
 import {
   MapPin, BedDouble, Maximize2, Layers, Phone, Heart,
-  ChevronLeft, CheckCircle, XCircle, Elevator, Car,
-  Wind, Wifi, Flame, Home, Calendar, Eye
+  ChevronLeft, CheckCircle, XCircle, Car,
+  Wind, Wifi, Home, Calendar, Eye
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
