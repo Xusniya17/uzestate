@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: uzestate-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python -c "from app.ml.train import train_model; train_model()"
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: uzestate-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: FRONTEND_URL
+        value: https://uzestate.vercel.app
+
+databases:
+  - name: uzestate-db
+    databaseName: uzestate_db
+    user: uzestate_user
