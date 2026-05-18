@@ -18,6 +18,10 @@ export default function Layout({ children, title, description }: LayoutProps) {
   const { setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
+    // Backend ni uyg'otish (Render free plan uxlaydi)
+    const API = process.env.NEXT_PUBLIC_API_URL?.replace("/v1", "") || "http://localhost:8000";
+    fetch(`${API}/ping`).catch(() => {});
+
     const token = getAccessToken();
     if (token) {
       userApi

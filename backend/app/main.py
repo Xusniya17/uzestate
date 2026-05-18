@@ -50,6 +50,11 @@ async def root():
     }
 
 
+@app.get("/ping")
+async def ping():
+    return {"pong": True}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
