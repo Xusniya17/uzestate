@@ -65,6 +65,7 @@ async def startup_event():
         print(f"ML model load warning: {e}")
 
     await seed_districts()
+    await seed_properties_data()
 
 
 async def seed_districts():
@@ -117,5 +118,186 @@ async def seed_districts():
             print("Districts seeded successfully")
     except Exception as e:
         print(f"Seed error: {e}")
+    finally:
+        db.close()
+
+
+async def seed_properties_data():
+    from app.database import SessionLocal
+    from app.models.property import Property, District
+    from app.models.user import User
+    from app.utils.security import hash_password
+    import uuid
+    from datetime import datetime, timedelta
+
+    db = SessionLocal()
+    try:
+        if db.query(Property).count() > 0:
+            return
+
+        admin = db.query(User).filter(User.email == "admin@uzestate.uz").first()
+        if not admin:
+            admin = User(
+                id=str(uuid.uuid4()),
+                email="admin@uzestate.uz",
+                first_name="Admin",
+                last_name="UzEstate",
+                password_hash=hash_password("Admin@12345"),
+                role="admin",
+                is_active=True,
+                is_email_verified=True,
+                language="uz",
+            )
+            db.add(admin)
+            db.commit()
+
+        districts = {d.code: d for d in db.query(District).all()}
+        if not districts:
+            return
+
+        UZS = 12700
+        props = [
+            dict(code="yunusobod", rooms=3, area=85, floor=7, total=16, btype="monolith", repair="euro",
+                 elevator=True, parking=True, balcony=True, price=145000, deal="sale",
+                 title_uz="Yunusobodda 3 xonali zamonaviy kvartira",
+                 title_ru="3-комнатная квартира в Юнусабаде", title_en="3-room apartment in Yunusabad",
+                 desc_uz="Yunusobod tumanida monolit binoda zamonaviy ta'mirli kvartira. Metro yaqin.",
+                 lat=41.3350, lng=69.3120, address="Yunusobod tumani, 16-mavze"),
+            dict(code="yunusobod", rooms=2, area=62, floor=3, total=9, btype="brick", repair="good",
+                 elevator=False, parking=False, balcony=True, price=98000, deal="sale",
+                 title_uz="Yunusobodda 2 xonali kvartira",
+                 title_ru="2-комнатная квартира в Юнусабаде", title_en="2-room apartment in Yunusabad",
+                 desc_uz="G'isht binoda yaxshi ta'mirli kvartira.",
+                 lat=41.3380, lng=69.3080, address="Yunusobod tumani, A.Temur ko'chasi"),
+            dict(code="chilonzor", rooms=1, area=38, floor=5, total=9, btype="panel", repair="average",
+                 elevator=False, parking=False, balcony=True, price=42000, deal="sale",
+                 title_uz="Chilonzorda 1 xonali kvartira",
+                 title_ru="1-комнатная квартира в Чиланзаре", title_en="1-room apartment in Chilanzar",
+                 desc_uz="Panel binoda o'rtacha ta'mirli kvartira. Arzon narx!",
+                 lat=41.2910, lng=69.2230, address="Chilonzor tumani, Olmazor ko'chasi"),
+            dict(code="chilonzor", rooms=4, area=110, floor=2, total=5, btype="brick", repair="euro",
+                 elevator=False, parking=True, balcony=True, price=118000, deal="sale",
+                 title_uz="Chilonzorda keng 4 xonali kvartira",
+                 title_ru="Просторная 4-комнатная в Чиланзаре", title_en="Spacious 4-room in Chilanzar",
+                 desc_uz="G'isht binoda evroremontli 4 xonali kvartira.",
+                 lat=41.2880, lng=69.2190, address="Chilonzor tumani, 19-mavze"),
+            dict(code="mirzo_ulugbek", rooms=2, area=55, floor=4, total=12, btype="new", repair="euro",
+                 elevator=True, parking=False, balcony=True, price=75000, deal="sale",
+                 title_uz="Mirzo Ulug'bekda yangi binodan 2 xona",
+                 title_ru="2-комнатная в новостройке Мирзо-Улугбек", title_en="2-room new building Mirzo Ulugbek",
+                 desc_uz="Yangi binodan evroremontli kvartira. Metroga yaqin.",
+                 lat=41.3210, lng=69.3520, address="Mirzo Ulug'bek tumani, Universitet ko'chasi"),
+            dict(code="mirzo_ulugbek", rooms=3, area=90, floor=8, total=16, btype="monolith", repair="good",
+                 elevator=True, parking=True, balcony=True, price=125000, deal="sale",
+                 title_uz="Mirzo Ulug'bekda 3 xonali monolit",
+                 title_ru="3-комнатная монолит Мирзо-Улугбек", title_en="3-room monolith Mirzo Ulugbek",
+                 desc_uz="Monolit binoda yaxshi holatdagi kvartira.",
+                 lat=41.3180, lng=69.3560, address="Mirzo Ulug'bek tumani, Sharaf Rashidov ko'chasi"),
+            dict(code="yakkasaroy", rooms=2, area=70, floor=6, total=9, btype="brick", repair="euro",
+                 elevator=True, parking=False, balcony=True, price=105000, deal="sale",
+                 title_uz="Yakkasaroyda 2 xonali evroremontli",
+                 title_ru="2-комнатная с евроремонтом Яккасарай", title_en="2-room euro-renovated Yakkasaray",
+                 desc_uz="Shahar markazida g'isht binoda evroremontli kvartira.",
+                 lat=41.2870, lng=69.2710, address="Yakkasaroy tumani, Shota Rustaveli ko'chasi"),
+            dict(code="sergeli", rooms=2, area=58, floor=3, total=9, btype="panel", repair="average",
+                 elevator=False, parking=False, balcony=True, price=38000, deal="sale",
+                 title_uz="Sergelidа arzon 2 xonali kvartira",
+                 title_ru="Недорогая 2-комнатная в Сергели", title_en="Affordable 2-room in Sergeli",
+                 desc_uz="Arzon narxda qulay kvartira.",
+                 lat=41.2230, lng=69.2720, address="Sergeli tumani"),
+            dict(code="shayxontohur", rooms=3, area=78, floor=5, total=9, btype="brick", repair="good",
+                 elevator=False, parking=False, balcony=True, price=89000, deal="sale",
+                 title_uz="Shayxontohurda 3 xonali kvartira",
+                 title_ru="3-комнатная в Шайхантахуре", title_en="3-room Shaykhantakhur",
+                 desc_uz="Eski qurilishda yaxshi ta'mirli kvartira.",
+                 lat=41.3200, lng=69.2640, address="Shayxontohur tumani, Navoiy ko'chasi"),
+            dict(code="mirobod", rooms=1, area=42, floor=9, total=16, btype="monolith", repair="euro",
+                 elevator=True, parking=False, balcony=True, price=62000, deal="sale",
+                 title_uz="Mirobodda zamonaviy 1 xonali",
+                 title_ru="Современная 1-комнатная в Мирабаде", title_en="Modern 1-room Mirobod",
+                 desc_uz="Biznes markaz yaqinida zamonaviy kvartira.",
+                 lat=41.3010, lng=69.2990, address="Mirobod tumani, Amir Temur xiyoboni"),
+            dict(code="yunusobod", rooms=2, area=65, floor=5, total=12, btype="new", repair="euro",
+                 elevator=True, parking=False, balcony=True, price=800, deal="rent",
+                 title_uz="Yunusobodda 2 xonali ijaraga",
+                 title_ru="2-комнатная в аренду Юнусабад", title_en="2-room for rent Yunusabad",
+                 desc_uz="Yangi binoda evroremontli kvartira ijaraga. Mebelь bor.",
+                 lat=41.3360, lng=69.3100, address="Yunusobod tumani, 12-mavze"),
+            dict(code="yunusobod", rooms=1, area=40, floor=3, total=9, btype="brick", repair="good",
+                 elevator=False, parking=False, balcony=True, price=450, deal="rent",
+                 title_uz="Yunusobodda 1 xonali ijaraga",
+                 title_ru="1-комнатная в аренду Юнусабад", title_en="1-room for rent Yunusabad",
+                 desc_uz="Qulay 1 xonali kvartira ijaraga. Mebelь va texnika bor.",
+                 lat=41.3400, lng=69.3050, address="Yunusobod tumani, Ferghana yo'li"),
+            dict(code="chilonzor", rooms=2, area=55, floor=6, total=9, btype="panel", repair="average",
+                 elevator=False, parking=False, balcony=True, price=350, deal="rent",
+                 title_uz="Chilonzorda 2 xonali arzon ijara",
+                 title_ru="2-комнатная аренда Чиланзар", title_en="2-room rent Chilanzar",
+                 desc_uz="Arzon narxda ijaraga kvartira.",
+                 lat=41.2900, lng=69.2200, address="Chilonzor tumani, Bunyodkor ko'chasi"),
+            dict(code="mirzo_ulugbek", rooms=3, area=90, floor=7, total=16, btype="monolith", repair="euro",
+                 elevator=True, parking=True, balcony=True, price=1200, deal="rent",
+                 title_uz="Mirzo Ulug'bekda 3 xonali premium ijara",
+                 title_ru="3-комнатная премиум аренда Мирзо-Улугбек", title_en="3-room premium rent Mirzo Ulugbek",
+                 desc_uz="Premium sinfli kvartira ijaraga. To'liq mebelь.",
+                 lat=41.3220, lng=69.3500, address="Mirzo Ulug'bek tumani, TATU yaqini"),
+            dict(code="mirobod", rooms=1, area=38, floor=4, total=9, btype="brick", repair="good",
+                 elevator=False, parking=False, balcony=False, price=500, deal="rent",
+                 title_uz="Mirobodda 1 xonali ijara",
+                 title_ru="1-комнатная аренда Мирабад", title_en="1-room rent Mirobod",
+                 desc_uz="Biznes markazlar yaqinida qulay kvartira.",
+                 lat=41.3020, lng=69.3010, address="Mirobod tumani, Bobur ko'chasi"),
+            dict(code="shayxontohur", rooms=2, area=68, floor=2, total=5, btype="old", repair="good",
+                 elevator=False, parking=False, balcony=True, price=400, deal="rent",
+                 title_uz="Shayxontohurda qulay 2 xonali ijara",
+                 title_ru="2-комнатная аренда Шайхантахур", title_en="2-room rent Shaykhantakhur",
+                 desc_uz="Markaziy joylashuv. Bozor, maktab yaqin.",
+                 lat=41.3210, lng=69.2650, address="Shayxontohur tumani"),
+        ]
+
+        for i, p in enumerate(props):
+            district = districts.get(p["code"])
+            if not district:
+                continue
+            prop = Property(
+                id=str(uuid.uuid4()),
+                user_id=admin.id,
+                district_id=district.id,
+                deal_type=p["deal"],
+                property_type="apartment",
+                building_type=p["btype"],
+                repair_status=p["repair"],
+                title_uz=p["title_uz"],
+                title_ru=p["title_ru"],
+                title_en=p["title_en"],
+                description_uz=p["desc_uz"],
+                area_total=p["area"],
+                rooms=p["rooms"],
+                floor=p["floor"],
+                total_floors=p["total"],
+                has_elevator=p["elevator"],
+                has_parking=p["parking"],
+                has_balcony=p["balcony"],
+                has_internet=True,
+                price_usd=p["price"],
+                price_uzs=p["price"] * UZS,
+                is_negotiable=True,
+                furniture="partial",
+                heating="central",
+                address=p["address"],
+                latitude=p["lat"],
+                longitude=p["lng"],
+                status="active",
+                views_count=0,
+                contact_phone="+998712000000",
+                created_at=datetime.utcnow() - timedelta(days=i),
+            )
+            db.add(prop)
+
+        db.commit()
+        print(f"Properties seeded: {len(props)} ta e'lon qo'shildi")
+    except Exception as e:
+        print(f"Property seed error: {e}")
+        db.rollback()
     finally:
         db.close()
