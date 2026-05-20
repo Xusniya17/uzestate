@@ -32,7 +32,8 @@ interface EstimationResult {
 }
 
 export default function EstimatePage() {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
+  const lang = i18n.language || "uz";
   const [result, setResult] = useState<EstimationResult | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -244,10 +245,15 @@ export default function EstimatePage() {
                   <div className="flex items-start gap-3">
                     <BarChart3 className="w-5 h-5 text-yellow-600 mt-0.5 shrink-0" />
                     <div>
-                      <div className="font-semibold text-yellow-800 text-sm mb-1">Ma'lumot</div>
+                      <div className="font-semibold text-yellow-800 text-sm mb-1">
+                        {lang === "ru" ? "Информация" : lang === "en" ? "Note" : "Ma'lumot"}
+                      </div>
                       <p className="text-xs text-yellow-700 leading-relaxed">
-                        Bu narx AI modeli tomonidan Toshkent shahridagi real bozor ma'lumotlari asosida hisoblanadi.
-                        Haqiqiy narx bozor vaziyati, muzokaralar va boshqa omillarga ko'ra farq qilishi mumkin.
+                        {lang === "ru"
+                          ? "Эта цена рассчитана моделью ИИ на основе реальных данных рынка недвижимости Ташкента. Фактическая цена может отличаться."
+                          : lang === "en"
+                          ? "This price is estimated by AI based on real Tashkent real estate market data. Actual price may vary."
+                          : "Bu narx AI modeli tomonidan Toshkent shahridagi real bozor ma'lumotlari asosida hisoblanadi. Haqiqiy narx farq qilishi mumkin."}
                       </p>
                     </div>
                   </div>

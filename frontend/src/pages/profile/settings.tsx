@@ -120,14 +120,14 @@ export default function SettingsPage() {
   ];
 
   return (
-    <Layout title="Sozlamalar">
+    <Layout title={t("profile.settings")}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <Link href="/profile" className="p-2 hover:bg-gray-100 rounded-xl transition">
             <ChevronLeft className="w-5 h-5 text-gray-500" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Sozlamalar</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("profile.settings")}</h1>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">

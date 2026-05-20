@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { TrendingUp, Building2, DollarSign, MapPin } from "lucide-react";
 
 export default function AnalyticsPage() {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
 
   const { data: overview } = useQuery({
     queryKey: ["market-overview"],
@@ -27,11 +27,15 @@ export default function AnalyticsPage() {
   })) || [];
 
   return (
-    <Layout title="Statistika">
+    <Layout title={t("nav.analytics")}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Bozor statistikasi</h1>
-          <p className="text-gray-500 mt-1">Toshkent shahri ko'chmas mulk bozori tahlili</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {i18n.language === "ru" ? "Статистика рынка" : i18n.language === "en" ? "Market Statistics" : "Bozor statistikasi"}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {i18n.language === "ru" ? "Анализ рынка недвижимости Ташкента" : i18n.language === "en" ? "Tashkent real estate market analysis" : "Toshkent shahri ko'chmas mulk bozori tahlili"}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

@@ -1,5 +1,6 @@
 import { GetStaticProps } from "next";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
+import { useTranslation } from "next-i18next";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -10,6 +11,7 @@ import Link from "next/link";
 import { History, ChevronLeft, TrendingUp } from "lucide-react";
 
 export default function HistoryPage() {
+  const { t } = useTranslation("common");
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
 
@@ -26,7 +28,7 @@ export default function HistoryPage() {
   if (isLoading || !user) return null;
 
   return (
-    <Layout title="Baholash tarixi">
+    <Layout title={t("profile.history")}>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-3 mb-8">
           <Link href="/profile" className="p-2 hover:bg-gray-100 rounded-xl transition">
@@ -34,7 +36,7 @@ export default function HistoryPage() {
           </Link>
           <div className="flex items-center gap-2">
             <History className="w-6 h-6 text-primary-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Baholash tarixi</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t("profile.history")}</h1>
           </div>
         </div>
 
