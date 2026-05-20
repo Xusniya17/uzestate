@@ -249,9 +249,10 @@ export default function PropertyDetailPage({ property }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps = async ({ params, locale }) => {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/v1";
   try {
     const { default: axios } = await import("axios");
-    const res = await axios.get(`http://localhost:8000/v1/properties/${params?.id}`, { timeout: 5000 });
+    const res = await axios.get(`${API_URL}/properties/${params?.id}`, { timeout: 10000 });
     return {
       props: {
         property: res.data,
