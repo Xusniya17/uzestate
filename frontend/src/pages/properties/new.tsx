@@ -347,7 +347,7 @@ export default function NewPropertyPage() {
                 type="number"
                 placeholder="85000"
                 className="input-field"
-                {...register("price_usd", { required: true, min: 1000 })}
+                {...register("price_usd", { required: true, min: 1 })}
               />
               {errors.price_usd && <p className="text-red-500 text-xs mt-1">Narxni kiriting</p>}
             </div>
