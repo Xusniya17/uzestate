@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, and_
 from typing import Optional, List
 from app.database import get_db
-from app.models.property import Property, District, Favorite
+from app.models.property import Property, District, Favorite, PropertyImage
 from app.models.user import User
 from app.schemas.property import (
     PropertyCreate, PropertyUpdate, PropertyResponse,
@@ -170,6 +170,40 @@ async def create_property(
     db.commit()
     db.refresh(prop)
     return prop
+
+
+@router.post("/{property_id}/photos", response_model=dict)
+async def upload_photos(
+    property_id: str,
+    data: dict,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Rasmlarni base64 formatda yuklash. data = {"photos": ["data:image/jpeg;base64,..."]}"""
+    prop = db.query(Property).filter(Property.id == property_id).first()
+    if not prop:
+        raise HTTPException(status_code=404, detail="E'lon topilmadi")
+    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+
+    photos = data.get("photos", [])
+    if not photos:
+        raise HTTPException(status_code=400, detail="Rasm yuklanmadi")
+
+    # Avvalgi rasmlarni o'chirish
+    db.query(PropertyImage).filter(PropertyImage.property_id == property_id).delete()
+
+    for i, photo_data in enumerate(photos[:10]):  # max 10 rasm
+        img = PropertyImage(
+            property_id=property_id,
+            url=photo_data,
+            is_main=(i == 0),
+            order_num=i,
+        )
+        db.add(img)
+
+    db.commit()
+    return {"message": f"{len(photos)} ta rasm yuklandi", "count": len(photos)}
 
 
 @router.get("/favorites", response_model=List[PropertyResponse])

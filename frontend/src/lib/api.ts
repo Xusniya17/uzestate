@@ -66,6 +66,7 @@ export const propertyApi = {
   addFavorite: (id: string) => api.post(`/properties/${id}/favorite`),
   removeFavorite: (id: string) => api.delete(`/properties/${id}/favorite`),
   getDistricts: () => api.get("/properties/districts"),
+  uploadPhotos: (id: string, photos: string[]) => api.post(`/properties/${id}/photos`, { photos }),
 };
 
 export const predictionApi = {

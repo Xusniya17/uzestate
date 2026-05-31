@@ -1,7 +1,7 @@
 import { GetStaticProps } from "next";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { useForm } from "react-hook-form";
 import Layout from "@/components/Layout";
@@ -9,7 +9,7 @@ import { useAuthStore } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { propertyApi } from "@/lib/api";
 import { toast } from "react-toastify";
-import { Home, RefreshCw, Send } from "lucide-react";
+import { Home, RefreshCw, Send, ImagePlus, X } from "lucide-react";
 
 interface FormData {
   district_id: number;
@@ -37,6 +37,27 @@ export default function NewPropertyPage() {
   const { t } = useTranslation("common");
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
+  const [photos, setPhotos] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (photos.length + files.length > 10) {
+      toast.warning("Maksimal 10 ta rasm yuklash mumkin");
+      return;
+    }
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setPhotos((prev) => [...prev, ev.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (idx: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   useEffect(() => {
     if (!isLoading && !user) router.push("/login");
@@ -74,6 +95,14 @@ export default function NewPropertyPage() {
         total_floors: Number(data.total_floors),
         price_usd: Number(data.price_usd),
       });
+      // Rasmlarni yuklash
+      if (photos.length > 0) {
+        try {
+          await propertyApi.uploadPhotos(res.data.id, photos);
+        } catch {
+          // rasm yuklanmasa ham e'lon yaratilgan
+        }
+      }
       toast.success("E'lon muvaffaqiyatli joylashtirildi!");
       router.push(`/properties/${res.data.id}`);
     } catch (err: any) {
@@ -114,6 +143,49 @@ export default function NewPropertyPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Rasmlar */}
+          <div className="card space-y-4">
+            <h2 className="font-semibold text-gray-900 border-b pb-2">Rasmlar (max 10 ta)</h2>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+              {photos.map((src, idx) => (
+                <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 group">
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  {idx === 0 && (
+                    <span className="absolute top-1 left-1 bg-primary-600 text-white text-xs px-1.5 py-0.5 rounded-md">
+                      Asosiy
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(idx)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {photos.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-primary-400 hover:text-primary-500 transition"
+                >
+                  <ImagePlus className="w-6 h-6 mb-1" />
+                  <span className="text-xs">Rasm qo'sh</span>
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+            <p className="text-xs text-gray-400">JPG, PNG, WEBP formatlar. Birinchi rasm asosiy hisoblanadi.</p>
+          </div>
+
           {/* Asosiy ma'lumotlar */}
           <div className="card space-y-4">
             <h2 className="font-semibold text-gray-900 border-b pb-2">Asosiy ma'lumotlar</h2>
