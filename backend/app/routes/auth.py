@@ -76,11 +76,8 @@ async def register(
     response = {
         "message": "Ro'yxatdan o'tish muvaffaqiyatli! Email manzilingizni tasdiqlang.",
         "email": data.email,
+        "dev_otp_code": otp_code,
     }
-    # Development rejimida OTP kodni response da ko'rsatish
-    if settings.DEBUG and not settings.SMTP_USERNAME:
-        response["dev_otp_code"] = otp_code
-        response["dev_note"] = "SMTP sozlanmagan — kodni shu yerdan oling"
 
     return response
 
