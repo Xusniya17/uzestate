@@ -5,12 +5,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { useForm } from "react-hook-form";
 import Layout from "@/components/Layout";
-import { useAuthStore, getAccessToken } from "@/lib/auth";
+import { useAuthStore } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { propertyApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { Home, RefreshCw, Send } from "lucide-react";
-import axios from "axios";
 
 interface FormData {
   district_id: number;
@@ -38,7 +37,6 @@ export default function NewPropertyPage() {
   const { t } = useTranslation("common");
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
-  const token = getAccessToken();
 
   useEffect(() => {
     if (!isLoading && !user) router.push("/login");
@@ -67,20 +65,15 @@ export default function NewPropertyPage() {
       return;
     }
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://uzestate-api.onrender.com";
-      const res = await axios.post(
-        `${apiUrl}/v1/properties`,
-        {
-          ...data,
-          district_id: Number(data.district_id),
-          area_total: Number(data.area_total),
-          rooms: Number(data.rooms),
-          floor: Number(data.floor),
-          total_floors: Number(data.total_floors),
-          price_usd: Number(data.price_usd),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await propertyApi.create({
+        ...data,
+        district_id: Number(data.district_id),
+        area_total: Number(data.area_total),
+        rooms: Number(data.rooms),
+        floor: Number(data.floor),
+        total_floors: Number(data.total_floors),
+        price_usd: Number(data.price_usd),
+      });
       toast.success("E'lon muvaffaqiyatli joylashtirildi!");
       router.push(`/properties/${res.data.id}`);
     } catch (err: any) {
