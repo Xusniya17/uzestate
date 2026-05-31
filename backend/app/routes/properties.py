@@ -164,7 +164,7 @@ async def create_property(
         latitude=data.latitude,
         longitude=data.longitude,
         contact_phone=data.contact_phone or current_user.phone,
-        status="moderation",
+        status="active",
     )
     db.add(prop)
     db.commit()

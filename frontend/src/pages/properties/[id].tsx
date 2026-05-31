@@ -10,7 +10,7 @@ import { toast } from "react-toastify";
 import {
   MapPin, BedDouble, Maximize2, Layers, Phone, Heart,
   ChevronLeft, CheckCircle, XCircle, Car,
-  Wind, Wifi, Home, Calendar, Eye
+  Wind, Wifi, Home, Calendar, Eye, Edit
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -77,9 +77,19 @@ export default function PropertyDetailPage({ property }: Props) {
     <Layout title={String(title)}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back */}
-        <Link href="/properties" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary-700 mb-6 text-sm font-medium">
-          <ChevronLeft className="w-4 h-4" /> {t("properties.title")}
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link href="/properties" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary-700 text-sm font-medium">
+            <ChevronLeft className="w-4 h-4" /> {t("properties.title")}
+          </Link>
+          {user && property.owner?.id === user.id && (
+            <Link
+              href={`/properties/edit/${property.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition text-sm font-medium"
+            >
+              <Edit className="w-4 h-4" /> Tahrirlash
+            </Link>
+          )}
+        </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left: images + info */}
