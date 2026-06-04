@@ -71,6 +71,24 @@ async def startup_event():
 
     await seed_districts()
     await seed_properties_data()
+    await fix_seller_roles()
+
+
+async def fix_seller_roles():
+    """seller.uzestate@gmail.com va boshqa seller userlarni agent role ga o'tkazish"""
+    from app.database import SessionLocal
+    from app.models.user import User
+    db = SessionLocal()
+    try:
+        seller = db.query(User).filter(User.email == "seller.uzestate@gmail.com").first()
+        if seller and seller.role == "user":
+            seller.role = "agent"
+            db.commit()
+            print("seller.uzestate@gmail.com -> agent role yangilandi")
+    except Exception as e:
+        print(f"fix_seller_roles error: {e}")
+    finally:
+        db.close()
 
 
 async def seed_districts():

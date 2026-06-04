@@ -49,6 +49,7 @@ async def register(
         last_name=data.last_name,
         password_hash=hash_password(data.password),
         language=data.language or "uz",
+        role="agent" if getattr(data, "user_type", None) == "seller" else "user",
     )
     db.add(user)
     db.commit()

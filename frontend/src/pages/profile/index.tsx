@@ -7,7 +7,7 @@ import Layout from "@/components/Layout";
 import { useAuthStore } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 import { useForm } from "react-hook-form";
-import { User, Heart, History, Settings, Lock, Mail, Phone, Globe, Edit2, Save } from "lucide-react";
+import { User, Heart, History, Settings, Lock, Mail, Phone, Globe, Edit2, Save, Home } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function ProfilePage() {
@@ -43,8 +43,10 @@ export default function ProfilePage() {
 
   if (isLoading || !user) return null;
 
+  const isSeller = user.role === "seller" || user.role === "agent" || user.role === "admin";
+
   const tabs = [
-    { label: t("profile.my_listings"), icon: User, href: "/profile/listings" },
+    ...(isSeller ? [{ label: "Mening e'lonlarim", icon: Home, href: "/profile/my-listings" }] : []),
     { label: t("profile.favorites"), icon: Heart, href: "/profile/favorites" },
     { label: t("profile.history"), icon: History, href: "/profile/history" },
     { label: t("profile.settings"), icon: Settings, href: "/profile/settings" },

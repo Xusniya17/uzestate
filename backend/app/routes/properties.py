@@ -183,6 +183,8 @@ async def upload_photos(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
+    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
 
     photos = data.get("photos", [])
     if not photos:
@@ -202,6 +204,17 @@ async def upload_photos(
 
     db.commit()
     return {"message": f"{len(photos)} ta rasm yuklandi", "count": len(photos)}
+
+
+@router.get("/my", response_model=List[PropertyResponse])
+async def get_my_properties(
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    return db.query(Property).filter(
+        Property.user_id == current_user.id,
+        Property.status != "inactive"
+    ).order_by(Property.created_at.desc()).all()
 
 
 @router.get("/favorites", response_model=List[PropertyResponse])
@@ -234,6 +247,8 @@ async def update_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
+    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
 
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(prop, field, value)
@@ -255,6 +270,8 @@ async def delete_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
+    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
     prop.status = PropertyStatus.inactive
     db.commit()
     return {"message": "E'lon o'chirildi"}
