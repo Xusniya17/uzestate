@@ -183,8 +183,6 @@ async def upload_photos(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
 
     photos = data.get("photos", [])
     if not photos:
@@ -236,8 +234,6 @@ async def update_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
 
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(prop, field, value)
@@ -259,8 +255,6 @@ async def delete_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Ruxsat yo'q")
     prop.status = PropertyStatus.inactive
     db.commit()
     return {"message": "E'lon o'chirildi"}
