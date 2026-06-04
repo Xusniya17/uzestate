@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, and_
 from typing import Optional, List
+from pydantic import BaseModel
+
+class PhotoUploadData(BaseModel):
+    photos: List[str]
 from app.database import get_db
 from app.models.property import Property, District, Favorite, PropertyImage
 from app.models.user import User
@@ -175,18 +179,18 @@ async def create_property(
 @router.post("/{property_id}/photos", response_model=dict)
 async def upload_photos(
     property_id: str,
-    data: dict,
+    data: PhotoUploadData,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Rasmlarni base64 formatda yuklash. data = {"photos": ["data:image/jpeg;base64,..."]}"""
+    """Rasmlarni base64 formatda yuklash."""
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin" and current_user.role != "agent":
         raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
 
-    photos = data.get("photos", [])
+    photos = data.photos
     if not photos:
         raise HTTPException(status_code=400, detail="Rasm yuklanmadi")
 
@@ -247,7 +251,7 @@ async def update_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+    if str(prop.user_id) != str(current_user.id) and current_user.role not in ("admin", "agent"):
         raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
 
     for field, value in data.model_dump(exclude_none=True).items():
@@ -270,7 +274,7 @@ async def delete_property(
     prop = db.query(Property).filter(Property.id == property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="E'lon topilmadi")
-    if str(prop.user_id) != str(current_user.id) and current_user.role != "admin":
+    if str(prop.user_id) != str(current_user.id) and current_user.role not in ("admin", "agent"):
         raise HTTPException(status_code=403, detail="E'lon sizniki emas, ruxsat yo'q")
     prop.status = PropertyStatus.inactive
     db.commit()
