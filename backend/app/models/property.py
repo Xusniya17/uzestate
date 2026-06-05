@@ -85,7 +85,7 @@ class PropertyImage(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     property_id = Column(String(36), ForeignKey("properties.id", ondelete="CASCADE"), nullable=False)
-    url = Column(String(500), nullable=False)
+    url = Column(Text, nullable=False)
     is_main = Column(Boolean, default=False)
     order_num = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
