@@ -69,9 +69,25 @@ async def startup_event():
     except Exception as e:
         print(f"ML model load warning: {e}")
 
+    await migrate_photo_url_to_text()
     await seed_districts()
     await seed_properties_data()
     await fix_seller_roles()
+
+
+async def migrate_photo_url_to_text():
+    """property_images.url ustunini TEXT ga o'zgartirish"""
+    from app.database import engine
+    try:
+        with engine.connect() as conn:
+            # PostgreSQL uchun
+            conn.execute(__import__('sqlalchemy').text(
+                "ALTER TABLE property_images ALTER COLUMN url TYPE TEXT"
+            ))
+            conn.commit()
+            print("property_images.url -> TEXT migration OK")
+    except Exception as e:
+        print(f"migrate_photo_url_to_text: {e} (already TEXT or SQLite)")
 
 
 async def fix_seller_roles():
