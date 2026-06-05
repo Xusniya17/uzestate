@@ -108,15 +108,15 @@ export default function PropertiesPage() {
           </select>
           <select
             className="input-field w-auto py-2.5"
-            value={`${filters.sort_by}_${filters.sort_order}`}
+            value={`${filters.sort_by}|${filters.sort_order}`}
             onChange={(e) => {
-              const [by, order] = e.target.value.split("_");
+              const [by, order] = e.target.value.split("|");
               setFilters((p) => ({ ...p, sort_by: by, sort_order: order }));
             }}
           >
-            <option value="created_at_desc">{t("properties.sort_newest")}</option>
-            <option value="price_usd_asc">{t("properties.sort_price_asc")}</option>
-            <option value="price_usd_desc">{t("properties.sort_price_desc")}</option>
+            <option value="created_at|desc">{t("properties.sort_newest")}</option>
+            <option value="price_usd|asc">{t("properties.sort_price_asc")}</option>
+            <option value="price_usd|desc">{t("properties.sort_price_desc")}</option>
           </select>
           <button
             onClick={() => setShowFilters(!showFilters)}
