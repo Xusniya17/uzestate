@@ -63,6 +63,46 @@ async def change_password(
     return {"message": "Parol muvaffaqiyatli o'zgartirildi"}
 
 
+@router.get("/admin/list", response_model=list)
+async def list_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Faqat admin uchun")
+    users = db.query(User).filter(User.is_active == True).order_by(User.created_at.desc()).all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "role": u.role,
+            "is_email_verified": u.is_email_verified,
+            "created_at": str(u.created_at),
+            "phone": u.phone,
+        }
+        for u in users
+    ]
+
+
+@router.put("/admin/{user_id}/role", response_model=dict)
+async def change_user_role(
+    user_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Faqat admin uchun")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    target.role = data.get("role", target.role)
+    db.commit()
+    return {"message": f"Role '{target.role}' ga o'zgartirildi"}
+
+
 @router.delete("/me", response_model=dict)
 async def delete_me(
     current_user: User = Depends(get_current_user),

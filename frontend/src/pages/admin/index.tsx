@@ -27,12 +27,19 @@ export default function AdminPage() {
     Promise.all([
       api.get("/analytics/market-overview"),
       api.get("/properties?per_page=50&sort_by=created_at&sort_order=desc"),
-    ]).then(([statsRes, propsRes]) => {
+      api.get("/users/admin/list"),
+    ]).then(([statsRes, propsRes, usersRes]) => {
       setStats(statsRes.data);
       setProperties(propsRes.data.items || []);
+      setUsers(usersRes.data || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [user]);
+
+  const changeUserRole = async (userId: string, role: string) => {
+    await api.put(`/users/admin/${userId}/role`, { role });
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role } : u));
+  };
 
   const approveProperty = async (id: string) => {
     await api.put(`/properties/${id}`, { status: "active" });
@@ -171,12 +178,58 @@ export default function AdminPage() {
 
         {/* Users */}
         {tab === "users" && (
-          <div className="card">
-            <p className="text-gray-500 text-sm">Foydalanuvchilar ro'yxati API orqali yuklanadi.</p>
-            <a href="http://localhost:8000/docs#/Users" target="_blank"
-              className="inline-flex items-center gap-2 mt-4 text-primary-600 hover:text-primary-800 text-sm font-medium">
-              <Users className="w-4 h-4" /> API docs orqali ko'rish →
-            </a>
+          <div className="card overflow-x-auto">
+            <h2 className="font-bold text-gray-900 mb-4">Foydalanuvchilar ({users.length} ta)</h2>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Ism</th>
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Email</th>
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Role</th>
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Tasdiqlangan</th>
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Sana</th>
+                  <th className="text-left py-3 px-2 text-gray-500 font-medium">Role o'zgartirish</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u: any) => (
+                  <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3 px-2 font-medium">{u.first_name} {u.last_name}</td>
+                    <td className="py-3 px-2 text-gray-500">{u.email}</td>
+                    <td className="py-3 px-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                        u.role === "admin" ? "bg-red-100 text-red-700" :
+                        u.role === "agent" ? "bg-blue-100 text-blue-700" :
+                        "bg-gray-100 text-gray-600"
+                      }`}>
+                        {u.role === "admin" ? "Admin" : u.role === "agent" ? "Seller" : "Buyer"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-2">
+                      {u.is_email_verified
+                        ? <CheckCircle className="w-4 h-4 text-green-500" />
+                        : <XCircle className="w-4 h-4 text-red-400" />}
+                    </td>
+                    <td className="py-3 px-2 text-gray-400 text-xs">
+                      {new Date(u.created_at).toLocaleDateString("uz-UZ")}
+                    </td>
+                    <td className="py-3 px-2">
+                      {u.role !== "admin" && (
+                        <select
+                          value={u.role}
+                          onChange={(e) => changeUserRole(u.id, e.target.value)}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
+                        >
+                          <option value="user">Buyer</option>
+                          <option value="agent">Seller</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
