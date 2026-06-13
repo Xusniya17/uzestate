@@ -72,6 +72,7 @@ async def startup_event():
     await migrate_photo_url_to_text()
     await seed_districts()
     await seed_properties_data()
+    await seed_real_listings()
     await fix_seller_roles()
 
 
@@ -337,6 +338,139 @@ async def seed_properties_data():
         print(f"Properties seeded: {len(props)} ta e'lon qo'shildi")
     except Exception as e:
         print(f"Property seed error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+# Real OLX.uz listings imported into the site so they appear on the "E'lonlar" page.
+# Rows are marked with this phone so the importer is idempotent across restarts.
+REAL_LISTING_PHONE = "+998700000000"
+
+
+async def seed_real_listings():
+    """Import the real scraped OLX.uz listings (CSV) into the properties table.
+
+    The CSV is produced by scrape_olx.py and uses ML district_id (0-11). The DB
+    District rows are seeded in the same order, so DB district = ordered[ml_id].
+    Listings are inserted with status="active" so they show on the public site.
+    Idempotent: guarded by REAL_LISTING_PHONE so it runs only once.
+    """
+    import os
+    import uuid
+    import csv as _csv
+    from datetime import datetime, timedelta
+    from app.database import SessionLocal
+    from app.models.property import Property, District
+    from app.models.user import User
+
+    csv_path = os.path.join(os.path.dirname(__file__), "ml", "tashkent_real_estate_data.csv")
+    if not os.path.exists(csv_path):
+        print("seed_real_listings: CSV not found, skipping")
+        return
+
+    db = SessionLocal()
+    try:
+        # Idempotency guard — already imported once
+        if db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).count() > 0:
+            return
+
+        admin = db.query(User).filter(User.email == "admin@uzestate.uz").first()
+        if not admin:
+            print("seed_real_listings: admin user missing, skipping")
+            return
+
+        # DB district ordered by id => index == ML district_id
+        districts_ordered = db.query(District).order_by(District.id).all()
+        if not districts_ordered:
+            print("seed_real_listings: districts missing, skipping")
+            return
+
+        ROOM_WORD_UZ = {1: "1 xonali", 2: "2 xonali", 3: "3 xonali", 4: "4 xonali",
+                        5: "5 xonali", 6: "6 xonali", 7: "7 xonali"}
+        REPAIR_UZ = {"euro": "evroremont", "good": "yaxshi ta'mir", "average": "o'rtacha ta'mir",
+                     "needs_repair": "ta'mir talab", "without_repair": "ta'mirsiz"}
+        REPAIR_RU = {"euro": "евроремонт", "good": "хороший ремонт", "average": "средний ремонт",
+                     "needs_repair": "требует ремонта", "without_repair": "без ремонта"}
+        REPAIR_EN = {"euro": "euro renovation", "good": "good condition", "average": "average condition",
+                     "needs_repair": "needs repair", "without_repair": "without repair"}
+
+        UZS = 12700
+        added = 0
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = _csv.DictReader(f)
+            for i, row in enumerate(reader):
+                try:
+                    ml_id = int(float(row["district_id"]))
+                    if ml_id < 0 or ml_id >= len(districts_ordered):
+                        continue
+                    district = districts_ordered[ml_id]
+                    rooms = int(float(row["rooms"]))
+                    area = float(row["area_total"])
+                    floor = int(float(row["floor"]))
+                    total = int(float(row["total_floors"]))
+                    price = int(float(row["price_usd"]))
+                    btype = row["building_type"]
+                    repair = row["repair_status"]
+                except (ValueError, KeyError):
+                    continue
+
+                rw = ROOM_WORD_UZ.get(rooms, f"{rooms} xonali")
+                dname_uz = district.name_uz
+                title_uz = f"{dname_uz}da {rw} kvartira"
+                title_ru = f"{rooms}-комнатная квартира, {district.name_ru}"
+                title_en = f"{rooms}-room apartment in {district.name_en}"
+                desc_uz = (f"{dname_uz}da {rw}, {area:.0f} m², {floor}/{total}-qavat. "
+                           f"{REPAIR_UZ.get(repair, repair)}. OLX.uz dan olingan real e'lon.")
+                desc_ru = (f"{rooms}-комнатная, {area:.0f} m², {floor}/{total} этаж. "
+                           f"{REPAIR_RU.get(repair, repair)}.")
+                desc_en = (f"{rooms}-room, {area:.0f} m², floor {floor}/{total}. "
+                           f"{REPAIR_EN.get(repair, repair)}.")
+
+                prop = Property(
+                    id=str(uuid.uuid4()),
+                    user_id=admin.id,
+                    district_id=district.id,
+                    deal_type="sale",
+                    property_type="apartment",
+                    building_type=btype,
+                    repair_status=repair,
+                    title_uz=title_uz,
+                    title_ru=title_ru,
+                    title_en=title_en,
+                    description_uz=desc_uz,
+                    description_ru=desc_ru,
+                    description_en=desc_en,
+                    area_total=area,
+                    rooms=rooms,
+                    floor=floor,
+                    total_floors=total,
+                    has_elevator=str(row.get("has_elevator", "0")).strip() in ("1", "1.0", "True"),
+                    has_parking=str(row.get("has_parking", "0")).strip() in ("1", "1.0", "True"),
+                    has_balcony=str(row.get("has_balcony", "0")).strip() in ("1", "1.0", "True"),
+                    has_internet=True,
+                    price_usd=price,
+                    price_uzs=price * UZS,
+                    is_negotiable=True,
+                    furniture="partial",
+                    heating="central",
+                    address=district.name_uz,
+                    latitude=district.center_lat,
+                    longitude=district.center_lng,
+                    status="active",
+                    views_count=0,
+                    contact_phone=REAL_LISTING_PHONE,
+                    created_at=datetime.utcnow() - timedelta(minutes=i),
+                )
+                db.add(prop)
+                added += 1
+                if added % 500 == 0:
+                    db.commit()
+
+        db.commit()
+        print(f"seed_real_listings: {added} real OLX.uz e'lon import qilindi")
+    except Exception as e:
+        print(f"seed_real_listings error: {e}")
         db.rollback()
     finally:
         db.close()
