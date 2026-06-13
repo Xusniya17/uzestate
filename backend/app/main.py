@@ -346,15 +346,18 @@ async def seed_properties_data():
 # Real OLX.uz listings imported into the site so they appear on the "E'lonlar" page.
 # Rows are marked with this phone so the importer is idempotent across restarts.
 REAL_LISTING_PHONE = "+998700000000"
+# How many real listings to show on the site (sampled evenly across the dataset).
+REAL_LISTING_LIMIT = 100
 
 
 async def seed_real_listings():
-    """Import the real scraped OLX.uz listings (CSV) into the properties table.
+    """Import a sample of the real scraped OLX.uz listings (CSV) into properties.
 
     The CSV is produced by scrape_olx.py and uses ML district_id (0-11). The DB
     District rows are seeded in the same order, so DB district = ordered[ml_id].
     Listings are inserted with status="active" so they show on the public site.
-    Idempotent: guarded by REAL_LISTING_PHONE so it runs only once.
+    Only REAL_LISTING_LIMIT rows are kept, sampled evenly for district/price variety.
+    Idempotent: re-runs only adjust the count to match REAL_LISTING_LIMIT.
     """
     import os
     import uuid
@@ -371,9 +374,15 @@ async def seed_real_listings():
 
     db = SessionLocal()
     try:
-        # Idempotency guard — already imported once
-        if db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).count() > 0:
+        existing = db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).count()
+        # Already at the desired count — nothing to do
+        if existing == REAL_LISTING_LIMIT:
             return
+        # Wrong count (e.g. an earlier full import of 2,200) — clear and re-import
+        if existing > 0:
+            db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).delete()
+            db.commit()
+            print(f"seed_real_listings: cleared {existing} old real listings")
 
         admin = db.query(User).filter(User.email == "admin@uzestate.uz").first()
         if not admin:
@@ -398,8 +407,15 @@ async def seed_real_listings():
         UZS = 12700
         added = 0
         with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
-            reader = _csv.DictReader(f)
-            for i, row in enumerate(reader):
+            all_rows = list(_csv.DictReader(f))
+        # Sample evenly across the full dataset for district/price variety
+        if len(all_rows) > REAL_LISTING_LIMIT:
+            step = len(all_rows) / REAL_LISTING_LIMIT
+            rows = [all_rows[int(k * step)] for k in range(REAL_LISTING_LIMIT)]
+        else:
+            rows = all_rows
+
+        for i, row in enumerate(rows):
                 try:
                     ml_id = int(float(row["district_id"]))
                     if ml_id < 0 or ml_id >= len(districts_ordered):
