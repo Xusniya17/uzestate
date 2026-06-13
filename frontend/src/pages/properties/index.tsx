@@ -1,7 +1,7 @@
 import { GetStaticProps } from "next";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import PropertyCard from "@/components/PropertyCard";
 import { propertyApi } from "@/lib/api";
@@ -14,6 +14,7 @@ export default function PropertiesPage() {
   const { t } = useTranslation("common");
   const { user } = useAuthStore();
   const [filters, setFilters] = useState({
+    search: "",
     district_id: "",
     deal_type: "sale",
     min_price: "",
@@ -28,7 +29,16 @@ export default function PropertiesPage() {
     sort_by: "created_at",
     sort_order: "desc",
   });
+  const [searchText, setSearchText] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce the search input so we don't refetch on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, search: searchText, page: 1 }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const { data: districts } = useQuery({
@@ -94,6 +104,8 @@ export default function PropertiesPage() {
               type="text"
               placeholder={t("properties.search")}
               className="input-field pl-9 py-2.5"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
             />
           </div>
           <select

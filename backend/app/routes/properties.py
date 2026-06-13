@@ -2,7 +2,7 @@ import uuid
 import math
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc, and_
+from sqlalchemy import desc, asc, and_, or_
 from typing import Optional, List
 from pydantic import BaseModel
 
@@ -70,6 +70,7 @@ async def list_properties(
     rooms: Optional[int] = Query(None),
     repair_status: Optional[str] = Query(None),
     building_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     has_elevator: Optional[bool] = Query(None),
     has_parking: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
@@ -100,6 +101,17 @@ async def list_properties(
         query = query.filter(Property.repair_status == repair_status)
     if building_type:
         query = query.filter(Property.building_type == building_type)
+    if search:
+        term = f"%{search.strip()}%"
+        query = query.filter(or_(
+            Property.title_uz.ilike(term),
+            Property.title_ru.ilike(term),
+            Property.title_en.ilike(term),
+            Property.description_uz.ilike(term),
+            Property.description_ru.ilike(term),
+            Property.description_en.ilike(term),
+            Property.address.ilike(term),
+        ))
     if has_elevator is not None:
         query = query.filter(Property.has_elevator == has_elevator)
     if has_parking is not None:
