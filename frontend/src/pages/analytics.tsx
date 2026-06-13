@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
             { icon: Building2, label: "Jami e'lonlar", value: overview?.total_listings?.toLocaleString() || "—", color: "blue" },
             { icon: DollarSign, label: "O'rtacha narx", value: overview ? `$${overview.avg_price_usd?.toLocaleString()}` : "—", color: "green" },
             { icon: TrendingUp, label: "1 m² narxi", value: overview ? `$${overview.avg_price_per_sqm?.toLocaleString()}` : "—", color: "purple" },
-            { icon: MapPin, label: "Tumanlar", value: "12", color: "orange" },
+            { icon: MapPin, label: "Tumanlar", value: (overview?.district_stats?.length || 10).toString(), color: "orange" },
           ].map((stat) => (
             <div key={stat.label} className="card">
               <div className={`w-10 h-10 rounded-xl bg-${stat.color}-50 flex items-center justify-center mb-3`}>
