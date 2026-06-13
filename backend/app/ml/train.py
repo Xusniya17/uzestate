@@ -18,6 +18,14 @@ MODEL_PATH = os.path.join(MODEL_DIR, "price_model.joblib")
 ENCODERS_PATH = os.path.join(MODEL_DIR, "encoders.joblib")
 
 
+# Full category vocabulary the website can send — encoders must cover all of
+# these even if the real scraped data does not contain every value.
+CATEGORY_VOCAB = {
+    "building_type": ["new", "old", "panel", "brick", "monolith"],
+    "repair_status": ["euro", "good", "average", "needs_repair", "without_repair"],
+}
+
+
 def prepare_features(df: pd.DataFrame, encoders: dict = None, fit: bool = False):
     categorical_cols = ["building_type", "repair_status"]
 
@@ -25,7 +33,10 @@ def prepare_features(df: pd.DataFrame, encoders: dict = None, fit: bool = False)
         encoders = {}
         for col in categorical_cols:
             le = LabelEncoder()
-            df[f"{col}_encoded"] = le.fit_transform(df[col])
+            # Fit on the full known vocabulary, not just observed values, so the
+            # model never crashes on a valid category missing from the dataset.
+            le.fit(CATEGORY_VOCAB[col])
+            df[f"{col}_encoded"] = le.transform(df[col])
             encoders[col] = le
     else:
         for col in categorical_cols:
@@ -51,10 +62,40 @@ def prepare_features(df: pd.DataFrame, encoders: dict = None, fit: bool = False)
     return df[feature_cols], encoders
 
 
+REAL_DATA_PATH = os.path.join(os.path.dirname(__file__), "tashkent_real_estate_data.csv")
+
+
+def load_dataset() -> pd.DataFrame:
+    """Prefer REAL scraped OLX.uz data when available, else synthetic data.
+
+    Real listings are scraped via scrape_olx.py. When fewer than a few hundred
+    real rows are present we top up with synthetic rows so the model still has
+    enough data to train on.
+    """
+    if os.path.exists(REAL_DATA_PATH):
+        real = pd.read_csv(REAL_DATA_PATH)
+        print(f"Loaded {len(real)} REAL listings from {os.path.basename(REAL_DATA_PATH)}")
+        # Outlier removal: trim extreme price-per-m2 (luxury / data errors)
+        before = len(real)
+        lo, hi = real["price_per_sqm"].quantile([0.02, 0.98])
+        real = real[(real["price_per_sqm"] >= lo) & (real["price_per_sqm"] <= hi)]
+        real = real[(real["price_usd"] >= 15000) & (real["price_usd"] <= 300000)]
+        print(f"Outlier removal: {before} -> {len(real)} rows (price/m2 in [{lo:.0f},{hi:.0f}])")
+        if len(real) >= 1000:
+            return real
+        # blend real + synthetic so training is stable
+        synth = generate_dataset(n_samples=max(2000, 4000 - len(real)))
+        cols = [c for c in synth.columns if c in real.columns]
+        blended = pd.concat([real[cols], synth[cols]], ignore_index=True)
+        print(f"Blended dataset: {len(real)} real + {len(synth)} synthetic = {len(blended)}")
+        return blended
+    print("No real data found — generating synthetic dataset...")
+    return generate_dataset(n_samples=8000)
+
+
 def train_model():
     os.makedirs(MODEL_DIR, exist_ok=True)
-    print("Generating dataset...")
-    df = generate_dataset(n_samples=8000)
+    df = load_dataset()
 
     X, encoders = prepare_features(df.copy(), fit=True)
     y = df["price_usd"]
@@ -85,13 +126,21 @@ def train_model():
         random_state=42,
     )
 
-    ensemble = VotingRegressor(
+    base_ensemble = VotingRegressor(
         estimators=[
             ("xgb", xgb_model),
             ("rf", rf_model),
             ("gb", gb_model),
         ],
         weights=[0.5, 0.3, 0.2],
+    )
+
+    # Log-transform the price target: real prices are right-skewed, so learning
+    # on log(price) reduces percentage error (MAPE). Predictions are mapped back
+    # to dollars automatically, so model.py needs no change.
+    from sklearn.compose import TransformedTargetRegressor
+    ensemble = TransformedTargetRegressor(
+        regressor=base_ensemble, func=np.log1p, inverse_func=np.expm1
     )
 
     print("Training ensemble model...")
