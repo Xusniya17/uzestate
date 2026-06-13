@@ -104,7 +104,15 @@ export default function HomeScreen() {
               onPress={() => navigation.navigate("PropertyDetail", { id: p.id })}
             >
               <View style={styles.propImage}>
-                <Ionicons name="home" size={32} color={COLORS.muted} />
+                {(p.images?.find((i: any) => i.is_main)?.url || p.images?.[0]?.url) ? (
+                  <Image
+                    source={{ uri: p.images.find((i: any) => i.is_main)?.url || p.images[0].url }}
+                    style={styles.propImageImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons name="home" size={32} color={COLORS.muted} />
+                )}
               </View>
               <View style={styles.propInfo}>
                 <Text style={styles.propTitle} numberOfLines={1}>
@@ -170,8 +178,9 @@ const styles = StyleSheet.create({
   },
   propImage: {
     width: 60, height: 60, backgroundColor: "#f3f4f6",
-    borderRadius: 12, alignItems: "center", justifyContent: "center",
+    borderRadius: 12, alignItems: "center", justifyContent: "center", overflow: "hidden",
   },
+  propImageImg: { width: "100%", height: "100%" },
   propInfo: { flex: 1 },
   propTitle: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   propDistrict: { fontSize: 12, color: COLORS.muted, marginTop: 2 },

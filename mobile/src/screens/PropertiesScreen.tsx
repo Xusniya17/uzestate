@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { propertyApi } from "../services/api";
@@ -17,13 +17,19 @@ export default function PropertiesScreen({ navigation }: any) {
     queryFn: () => propertyApi.getList({ deal_type: dealType, page, per_page: 10 }).then((r) => r.data),
   });
 
-  const renderItem = ({ item }: any) => (
+  const renderItem = ({ item }: any) => {
+    const imgUrl = item.images?.find((i: any) => i.is_main)?.url || item.images?.[0]?.url;
+    return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate("PropertyDetail", { id: item.id })}
     >
       <View style={styles.cardImage}>
-        <Ionicons name="home" size={28} color={COLORS.muted} />
+        {imgUrl ? (
+          <Image source={{ uri: imgUrl }} style={styles.cardImageImg} resizeMode="cover" />
+        ) : (
+          <Ionicons name="home" size={28} color={COLORS.muted} />
+        )}
       </View>
       <View style={styles.cardContent}>
         <View style={styles.cardTop}>
@@ -47,6 +53,7 @@ export default function PropertiesScreen({ navigation }: any) {
       </View>
     </TouchableOpacity>
   );
+  };
 
   return (
     <View style={styles.container}>
@@ -105,9 +112,10 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 3, overflow: "hidden",
   },
   cardImage: {
-    width: 90, backgroundColor: "#f3f4f6",
+    width: 110, backgroundColor: "#f3f4f6",
     alignItems: "center", justifyContent: "center",
   },
+  cardImageImg: { width: "100%", height: "100%" },
   cardContent: { flex: 1, padding: 14 },
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
   cardDistrict: { fontSize: 12, color: COLORS.muted },
