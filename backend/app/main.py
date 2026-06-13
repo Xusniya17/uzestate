@@ -73,6 +73,7 @@ async def startup_event():
     await seed_districts()
     await seed_properties_data()
     await seed_real_listings()
+    await seed_real_rentals()
     await fix_seller_roles()
 
 
@@ -349,6 +350,13 @@ REAL_LISTING_PHONE = "+998700000000"
 # How many real listings to show on the site (sampled evenly across the dataset).
 REAL_LISTING_LIMIT = 100
 
+# Rental listings derived from the same real dataset. The CSV holds sale prices,
+# so a realistic monthly rent is estimated from the sale price using a typical
+# Tashkent gross rental yield (~7%/year => ~0.6%/month). Marked with a distinct
+# phone so the sale and rent importers stay independent and idempotent.
+REAL_RENT_PHONE = "+998700000001"
+REAL_RENT_LIMIT = 50
+
 # Pool of real apartment photos (Unsplash). Each listing gets a few of these so the
 # cards/detail pages are not empty. Rendered with a plain <img>, so no domain
 # whitelist is needed. Photos are picked deterministically by listing index.
@@ -531,6 +539,164 @@ async def seed_real_listings():
         print(f"seed_real_listings: {added} real OLX.uz e'lon import qilindi")
     except Exception as e:
         print(f"seed_real_listings error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _estimate_monthly_rent(sale_price_usd: int) -> int:
+    """Estimate a realistic monthly rent (USD) from a sale price.
+
+    Uses a ~7%/year gross yield (~0.58%/month), clamped to a sensible band and
+    rounded to the nearest $25 so prices look like real listings.
+    """
+    rent = sale_price_usd * 0.0058
+    rent = max(180, min(3000, rent))
+    return int(round(rent / 25.0) * 25)
+
+
+async def seed_real_rentals():
+    """Import a sample of real listings as RENTAL offers (deal_type="rent").
+
+    Reuses the same scraped dataset but converts the sale price into a realistic
+    monthly rent. A different sampling offset is used so the rent set is not a
+    duplicate of the sale set. Idempotent via REAL_RENT_PHONE; photos attached.
+    """
+    import os
+    import uuid
+    import csv as _csv
+    from datetime import datetime, timedelta
+    from app.database import SessionLocal
+    from app.models.property import Property, District, PropertyImage
+    from app.models.user import User
+
+    csv_path = os.path.join(os.path.dirname(__file__), "ml", "tashkent_real_estate_data.csv")
+    if not os.path.exists(csv_path):
+        print("seed_real_rentals: CSV not found, skipping")
+        return
+
+    db = SessionLocal()
+    try:
+        existing_props = db.query(Property).filter(Property.contact_phone == REAL_RENT_PHONE).all()
+        existing = len(existing_props)
+        # Already at desired count — just ensure photos exist.
+        if existing == REAL_RENT_LIMIT:
+            backfilled = 0
+            for idx, prop in enumerate(existing_props):
+                if db.query(PropertyImage).filter(PropertyImage.property_id == prop.id).count() == 0:
+                    _attach_listing_images(db, prop, idx + 7)
+                    backfilled += 1
+            if backfilled:
+                db.commit()
+                print(f"seed_real_rentals: {backfilled} ijara e'loniga rasm qo'shildi")
+            return
+        if existing > 0:
+            db.query(Property).filter(Property.contact_phone == REAL_RENT_PHONE).delete()
+            db.commit()
+            print(f"seed_real_rentals: cleared {existing} old rent listings")
+
+        admin = db.query(User).filter(User.email == "admin@uzestate.uz").first()
+        if not admin:
+            print("seed_real_rentals: admin user missing, skipping")
+            return
+
+        districts_ordered = db.query(District).order_by(District.id).all()
+        if not districts_ordered:
+            print("seed_real_rentals: districts missing, skipping")
+            return
+
+        ROOM_WORD_UZ = {1: "1 xonali", 2: "2 xonali", 3: "3 xonali", 4: "4 xonali",
+                        5: "5 xonali", 6: "6 xonali", 7: "7 xonali"}
+        REPAIR_UZ = {"euro": "evroremont", "good": "yaxshi ta'mir", "average": "o'rtacha ta'mir",
+                     "needs_repair": "ta'mir talab", "without_repair": "ta'mirsiz"}
+        REPAIR_RU = {"euro": "евроремонт", "good": "хороший ремонт", "average": "средний ремонт",
+                     "needs_repair": "требует ремонта", "without_repair": "без ремонта"}
+        REPAIR_EN = {"euro": "euro renovation", "good": "good condition", "average": "average condition",
+                     "needs_repair": "needs repair", "without_repair": "without repair"}
+
+        UZS = 12700
+        added = 0
+        with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+            all_rows = list(_csv.DictReader(f))
+        # Sample evenly but with a half-step offset so rentals differ from sales.
+        if len(all_rows) > REAL_RENT_LIMIT:
+            step = len(all_rows) / REAL_RENT_LIMIT
+            rows = [all_rows[int((k + 0.5) * step) % len(all_rows)] for k in range(REAL_RENT_LIMIT)]
+        else:
+            rows = all_rows
+
+        for i, row in enumerate(rows):
+            try:
+                ml_id = int(float(row["district_id"]))
+                if ml_id < 0 or ml_id >= len(districts_ordered):
+                    continue
+                district = districts_ordered[ml_id]
+                rooms = int(float(row["rooms"]))
+                area = float(row["area_total"])
+                floor = int(float(row["floor"]))
+                total = int(float(row["total_floors"]))
+                sale_price = int(float(row["price_usd"]))
+                btype = row["building_type"]
+                repair = row["repair_status"]
+            except (ValueError, KeyError):
+                continue
+
+            rent = _estimate_monthly_rent(sale_price)
+            rw = ROOM_WORD_UZ.get(rooms, f"{rooms} xonali")
+            dname_uz = district.name_uz
+            title_uz = f"{dname_uz}da {rw} kvartira ijaraga"
+            title_ru = f"{rooms}-комнатная квартира в аренду, {district.name_ru}"
+            title_en = f"{rooms}-room apartment for rent in {district.name_en}"
+            desc_uz = (f"{dname_uz}da {rw}, {area:.0f} m², {floor}/{total}-qavat. "
+                       f"{REPAIR_UZ.get(repair, repair)}. Oylik ijara. OLX.uz dan olingan real e'lon.")
+            desc_ru = (f"{rooms}-комнатная, {area:.0f} m², {floor}/{total} этаж. "
+                       f"{REPAIR_RU.get(repair, repair)}. Помесячная аренда.")
+            desc_en = (f"{rooms}-room, {area:.0f} m², floor {floor}/{total}. "
+                       f"{REPAIR_EN.get(repair, repair)}. Monthly rent.")
+
+            prop = Property(
+                id=str(uuid.uuid4()),
+                user_id=admin.id,
+                district_id=district.id,
+                deal_type="rent",
+                property_type="apartment",
+                building_type=btype,
+                repair_status=repair,
+                title_uz=title_uz,
+                title_ru=title_ru,
+                title_en=title_en,
+                description_uz=desc_uz,
+                description_ru=desc_ru,
+                description_en=desc_en,
+                area_total=area,
+                rooms=rooms,
+                floor=floor,
+                total_floors=total,
+                has_elevator=str(row.get("has_elevator", "0")).strip() in ("1", "1.0", "True"),
+                has_parking=str(row.get("has_parking", "0")).strip() in ("1", "1.0", "True"),
+                has_balcony=str(row.get("has_balcony", "0")).strip() in ("1", "1.0", "True"),
+                has_internet=True,
+                price_usd=rent,
+                price_uzs=rent * UZS,
+                is_negotiable=True,
+                furniture="partial",
+                heating="central",
+                address=district.name_uz,
+                latitude=district.center_lat,
+                longitude=district.center_lng,
+                status="active",
+                views_count=0,
+                contact_phone=REAL_RENT_PHONE,
+                created_at=datetime.utcnow() - timedelta(minutes=i),
+            )
+            db.add(prop)
+            _attach_listing_images(db, prop, i + 7)
+            added += 1
+
+        db.commit()
+        print(f"seed_real_rentals: {added} ijara e'loni import qilindi")
+    except Exception as e:
+        print(f"seed_real_rentals error: {e}")
         db.rollback()
     finally:
         db.close()
