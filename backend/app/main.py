@@ -349,6 +349,38 @@ REAL_LISTING_PHONE = "+998700000000"
 # How many real listings to show on the site (sampled evenly across the dataset).
 REAL_LISTING_LIMIT = 100
 
+# Pool of real apartment photos (Unsplash). Each listing gets a few of these so the
+# cards/detail pages are not empty. Rendered with a plain <img>, so no domain
+# whitelist is needed. Photos are picked deterministically by listing index.
+REAL_LISTING_IMAGES = [
+    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1556912173-3bb406ef7e77?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=900&q=70",
+    "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=70",
+]
+
+
+def _attach_listing_images(db, prop, index):
+    """Attach 3 deterministic apartment photos to a listing (first = main)."""
+    from app.models.property import PropertyImage
+    n = len(REAL_LISTING_IMAGES)
+    for k in range(3):
+        url = REAL_LISTING_IMAGES[(index + k * 4) % n]
+        db.add(PropertyImage(
+            property_id=prop.id,
+            url=url,
+            is_main=(k == 0),
+            order_num=k,
+        ))
+
 
 async def seed_real_listings():
     """Import a sample of the real scraped OLX.uz listings (CSV) into properties.
@@ -374,9 +406,20 @@ async def seed_real_listings():
 
     db = SessionLocal()
     try:
-        existing = db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).count()
-        # Already at the desired count — nothing to do
+        from app.models.property import PropertyImage
+        existing_props = db.query(Property).filter(Property.contact_phone == REAL_LISTING_PHONE).all()
+        existing = len(existing_props)
+        # Already at the desired count — just make sure each one has photos.
         if existing == REAL_LISTING_LIMIT:
+            backfilled = 0
+            for idx, prop in enumerate(existing_props):
+                has_img = db.query(PropertyImage).filter(PropertyImage.property_id == prop.id).count()
+                if has_img == 0:
+                    _attach_listing_images(db, prop, idx)
+                    backfilled += 1
+            if backfilled:
+                db.commit()
+                print(f"seed_real_listings: {backfilled} listing uchun rasm qo'shildi")
             return
         # Wrong count (e.g. an earlier full import of 2,200) — clear and re-import
         if existing > 0:
@@ -479,6 +522,7 @@ async def seed_real_listings():
                     created_at=datetime.utcnow() - timedelta(minutes=i),
                 )
                 db.add(prop)
+                _attach_listing_images(db, prop, i)
                 added += 1
                 if added % 500 == 0:
                     db.commit()
