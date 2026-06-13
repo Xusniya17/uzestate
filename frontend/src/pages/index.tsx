@@ -22,10 +22,10 @@ export default function Home() {
   });
 
   const stats = [
-    { label: t("home.stats_listings"), value: overview?.total_listings?.toLocaleString() || "10,000+", icon: Building2, color: "text-blue-600 bg-blue-50" },
-    { label: t("home.stats_districts"), value: "12", icon: MapPin, color: "text-green-600 bg-green-50" },
-    { label: t("home.stats_accuracy"), value: "92%", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
-    { label: t("home.stats_users"), value: "5,000+", icon: BarChart3, color: "text-orange-600 bg-orange-50" },
+    { label: t("home.stats_listings"), value: overview?.total_listings?.toLocaleString() || "150+", icon: Building2, color: "text-blue-600 bg-blue-50" },
+    { label: t("home.stats_districts"), value: (overview?.district_stats?.length || 10).toString(), icon: MapPin, color: "text-green-600 bg-green-50" },
+    { label: t("home.stats_accuracy"), value: "80%", icon: TrendingUp, color: "text-purple-600 bg-purple-50" },
+    { label: t("home.stats_dataset"), value: "1,542", icon: BarChart3, color: "text-orange-600 bg-orange-50" },
   ];
 
   const steps = [
@@ -42,7 +42,7 @@ export default function Home() {
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full text-sm mb-6 backdrop-blur-sm">
               <Shield className="w-4 h-4 text-green-400" />
-              <span>AI-powered • Toshkent shahri • 2024</span>
+              <span>AI-powered • Toshkent shahri • 2026</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-4">
               {t("home.hero_title")}{" "}

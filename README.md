@@ -1,75 +1,73 @@
-# UzEstate — Ko'chmas Mulk Narxini Baholash Tizimi
+# UzEstate — Real Estate Price Estimation System
 
-**Diplom ishi:** House Price Estimation Model for the Real Estate Market in Uzbekistan  
-**Hudud:** Toshkent shahri (12 ta tuman)  
-**Tillar:** O'zbek 🇺🇿 | Русский 🇷🇺 | English 🇬🇧
+**Independent Project:** House Price Estimation Model for the Real Estate Market in Uzbekistan
+**Coverage:** Uzbekistan's real estate market (current data covers districts of Tashkent city)
+**Languages:** Uzbek 🇺🇿 | Russian 🇷🇺 | English 🇬🇧
 
 ---
 
-## Loyiha tuzilmasi
+## Project Structure
 
 ```
 house-price-uz/
-├── docs/           # TZ va hujjatlar
+├── docs/           # Specifications and documentation
 ├── backend/        # Python FastAPI backend + ML model
-├── frontend/       # Next.js web ilova
-├── mobile/         # React Native mobil ilova
-├── nginx/          # Nginx konfiguratsiya
+├── frontend/       # Next.js web application
+├── mobile/         # React Native mobile application
+├── nginx/          # Nginx configuration
 └── docker-compose.yml
 ```
 
 ---
 
-## Texnologiyalar
+## Tech Stack
 
-| Qism | Texnologiya |
-|------|-------------|
+| Layer | Technology |
+|-------|------------|
 | Backend | Python 3.11, FastAPI, SQLAlchemy |
-| ML Model | XGBoost, Random Forest, scikit-learn |
-| Database | PostgreSQL 15 |
-| Cache | Redis |
-| Web Frontend | Next.js 14, TypeScript, Tailwind CSS |
+| ML Model | XGBoost, Random Forest, Gradient Boosting (scikit-learn) |
+| Database | PostgreSQL (prod) / SQLite (dev) |
+| Web Frontend | Next.js 14, TypeScript, Tailwind CSS, React Query |
 | Mobile | React Native (Expo) |
 | Auth | JWT (access + refresh tokens) |
-| Email | SMTP / aiosmtplib |
-| SMS | Eskiz.uz API |
-| Deploy | Docker Compose, Nginx |
+| Email / SMS | SMTP (aiosmtplib) / Eskiz.uz API |
+| Deploy | Vercel (web), Render (API + model), Docker Compose |
 
 ---
 
-## Ishga tushirish
+## Getting Started
 
-### 1. Backend (lokal)
+### 1. Backend (local)
 
 ```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate          # Windows
 pip install -r requirements.txt
-cp .env.example .env           # .env ni to'ldiring
+cp .env.example .env           # fill in .env
 
-# ML modelni o'qitish
+# Train the ML model
 python -m app.ml.train
 
-# Serverni ishga tushirish
+# Run the server
 uvicorn app.main:app --reload --port 8000
 ```
 
 API docs: http://localhost:8000/docs
 
-### 2. Web Frontend (lokal)
+### 2. Web Frontend (local)
 
 ```bash
 cd frontend
 npm install
-# .env.local fayl yarating:
+# Create a .env.local file:
 # NEXT_PUBLIC_API_URL=http://localhost:8000/v1
 npm run dev
 ```
 
-Veb: http://localhost:3000
+Web: http://localhost:3000
 
-### 3. Mobil ilova
+### 3. Mobile App
 
 ```bash
 cd mobile
@@ -77,84 +75,137 @@ npm install
 npx expo start
 ```
 
-QR kodni Expo Go ilovasi orqali skanerlang.
+Scan the QR code with the Expo Go app.
 
-### 4. Docker Compose (to'liq)
+### 4. Docker Compose (full stack)
 
 ```bash
-# .env faylini sozlang
+# Configure the .env file
 cp backend/.env.example backend/.env
 
-# Barcha xizmatlarni ishga tushirish
+# Start all services
 docker-compose up -d
 
-# Log ko'rish
+# View logs
 docker-compose logs -f api
 ```
 
-Veb: http://localhost  
-API: http://localhost/v1  
+Web: http://localhost
+API: http://localhost/v1
 Docs: http://localhost/docs
 
 ---
 
-## API Endpointlar
+## Live Deployment
+
+- **Website:** https://uzestate.vercel.app
+- **API:** https://uzestate-api.onrender.com/v1
+- **API docs:** https://uzestate-api.onrender.com/docs
+
+---
+
+## API Endpoints
 
 ```
-POST /v1/auth/register          — Ro'yxatdan o'tish
-POST /v1/auth/verify-email      — Email tasdiqlash (OTP)
-POST /v1/auth/login             — Kirish
-POST /v1/auth/refresh           — Token yangilash
-POST /v1/auth/logout            — Chiqish
-POST /v1/auth/forgot-password   — Parolni tiklash
-POST /v1/auth/send-sms-otp      — SMS kod yuborish
-POST /v1/auth/verify-phone      — Telefon tasdiqlash
+POST /v1/auth/register          — Register
+POST /v1/auth/verify-email      — Verify email (OTP)
+POST /v1/auth/login             — Log in
+POST /v1/auth/refresh           — Refresh token
+POST /v1/auth/logout            — Log out
+POST /v1/auth/forgot-password   — Reset password
+POST /v1/auth/send-sms-otp      — Send SMS code
+POST /v1/auth/verify-phone      — Verify phone
 
-GET  /v1/users/me               — Profilni olish
-PUT  /v1/users/me               — Profilni yangilash
+GET  /v1/users/me               — Get profile
+PUT  /v1/users/me               — Update profile
 
-GET  /v1/properties             — E'lonlar ro'yxati
-POST /v1/properties             — E'lon yaratish
-GET  /v1/properties/{id}        — E'lon ma'lumoti
-GET  /v1/properties/districts   — Tumanlar ro'yxati
+GET  /v1/properties             — List of listings
+POST /v1/properties             — Create a listing
+GET  /v1/properties/{id}        — Listing details
+GET  /v1/properties/districts   — List of districts
 
-POST /v1/predictions/estimate   — Narx baholash (ML)
-GET  /v1/predictions/history    — Baholash tarixi
+POST /v1/predictions/estimate   — Price estimation (ML)
+GET  /v1/predictions/history    — Estimation history
 
-GET  /v1/analytics/market-overview  — Bozor statistikasi
-GET  /v1/analytics/price-trends     — Narx dinamikasi
+GET  /v1/analytics/market-overview  — Market statistics
+GET  /v1/analytics/price-trends     — Price dynamics
 ```
+
+---
+
+## Database
+
+- **Type:** relational (SQL)
+- **Production:** PostgreSQL
+- **Development:** SQLite
+- **ORM:** SQLAlchemy
+- **Migrations:** Alembic
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `users` | Users (with roles) |
+| `refresh_tokens` | JWT refresh tokens |
+| `otp_codes` | Email/SMS verification codes |
+| `districts` | Tashkent districts (reference data) |
+| `properties` | Real estate listings (sale/rent) |
+| `property_images` | Listing images |
+| `favorites` | User's saved listings |
+| `price_history` | Price change history |
+| `predictions` | ML estimation request results |
 
 ---
 
 ## ML Model
 
-- **Algoritm:** Ensemble (XGBoost 50% + Random Forest 30% + Gradient Boosting 20%)
-- **Dataset:** 8,000 ta sintetik lekin realistik Toshkent ma'lumotlari
-- **Maqsadli R²:** ≥ 0.85
-- **12 ta xususiyat:** tuman, maydon, xonalar, qavat, bino turi, ta'mirlash, lift, avtoturargoh, balkon
+- **Algorithm:** Ensemble — XGBoost (50%) + Random Forest (30%) + Gradient Boosting (20%), `VotingRegressor`
+- **Target variable:** trained on `log(1 + price)` (to stabilise the wide price range)
+- **Dataset:** 2,200 raw listings collected → **1,542** records after cleaning and validation
+- **Split:** 80% train / 20% test, with 5-fold cross-validation on the training set
+- **14 features:** `district_id`, `area_total`, `area_per_room`, `rooms`, `floor`, `total_floors`, `floor_ratio`, `is_top_floor`, `is_ground_floor`, `has_elevator`, `has_parking`, `has_balcony`, `building_type_encoded`, `repair_status_encoded`
 
-### Toshkent tumanlari o'rtacha narxlari (2024):
+### Results (on the test set)
 
-| Tuman | 1 m² narxi (USD) |
-|-------|-----------------|
-| Yunusobod | $1,600 |
-| Yakkasaroy | $1,400 |
-| Mirobod | $1,300 |
-| Mirzo Ulugbek | $1,150 |
-| Shayxontohur | $1,050 |
-| Chilonzor | $950 |
-| Almazar | $900 |
-| Olmazor | $850 |
-| Uchtepa | $780 |
-| Yashnobod | $750 |
-| Sergeli | $680 |
-| Bektemir | $580 |
+| Metric | Value |
+|--------|-------|
+| R² | 0.80 |
+| RMSE | $25,062 |
+| MAE | $15,072 |
+| MAPE | 17.82% |
+| Cross-val R² | 0.80 ± 0.03 |
+
+> **Note:** the mean error is ~18% (MAPE) — the model provides a guiding estimate of price, not a formal appraisal.
+
+### Average prices by district (per m², USD — current platform data)
+
+| District | Price per m² (USD) |
+|----------|--------------------|
+| Shaykhantakhur | $2,726 |
+| Mirobod | $1,666 |
+| Yakkasaray | $1,256 |
+| Yashnobod | $1,104 |
+| Mirzo Ulugbek | $1,008 |
+| Chilanzar | $979 |
+| Yunusabad | $899 |
+| Bektemir | $648 |
+| Sergeli | $580 |
+| Almazar | $544 |
 
 ---
 
-## Muallif
+## Limitations
 
-**Diplom ishi** — O'zbekiston ko'chmas mulk bozori uchun uy narxini baholash modeli  
-**Universitetlar:** [Universitetingiz nomi]  
-**Yil:** 2026
+- The dataset is modest (1,542 records) and skewed toward Tashkent districts.
+- Rental prices are estimated from sale prices using a yield assumption — not directly collected rental data.
+- Listing photos are illustrative stock images, not photos of the specific apartments.
+- There is no time dimension — the model captures a snapshot, not market trends.
+
+---
+
+## Author
+
+**Independent Project** — House Price Estimation Model for the Real Estate Market in Uzbekistan
+**Student:** Xusniya Turdiqulova
+**University:** PDP University — Faculty of Software Development and Programming
+**Year:** 2026
